@@ -89,3 +89,34 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+int
+sys_mencrypt(void)
+{
+	char* virtual_addr;
+	int len;
+	if(argint(0, &len) < 0)
+	 return -1;
+	if(argptr(1, &virtual_addr, sizeof(char*)) < 0)
+	 return -1;
+
+	return mencrypt(virtual_addr, len);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
