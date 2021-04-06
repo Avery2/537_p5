@@ -72,10 +72,14 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
   {
     if ((pte = walkpgdir(pgdir, a, 1)) == 0)
       return -1;
-    if (*pte & PTE_P)
+    if (*pte & (PTE_P | PTE_E))
       panic("remap");
-    // HERE I can set PTE_E to start at 0.
-    *pte = (pa | perm | PTE_P) & (~PTE_E);
+    
+    if (perm & PTE_E) {
+      *pte = (pa | perm | PTE_P | PTE_E);
+    } else {// HERE I can set PTE_E to start at 0.
+      *pte = (pa | perm | PTE_P);
+    }
     if (a == last)
       break;
     a += PGSIZE;
@@ -332,7 +336,7 @@ copyuvm(pde_t *pgdir, uint sz)
   {
     if ((pte = walkpgdir(pgdir, (void *)i, 0)) == 0)
       panic("copyuvm: pte should exist");
-    if (!(*pte & PTE_P))
+    if (!(*pte & (PTE_P | PTE_E)))
       panic("copyuvm: page not present");
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
@@ -405,6 +409,7 @@ int copyout(pde_t *pgdir, uint va, void *p, uint len)
 
 int mencrypt(char *virtual_addr, int len)
 {
+  // cprintf("mencrypt begining...\n");
   // error checking
   if (len < 0)
   {
@@ -423,29 +428,37 @@ int mencrypt(char *virtual_addr, int len)
   uint first = PGROUNDDOWN((uint)virtual_addr);               // first page to encrypt
   uint last = PGROUNDDOWN((uint)virtual_addr) + len * PGSIZE; // last page (not included)
 
-  cprintf("virtual addr: %d\n", (uint)virtual_addr);
-  cprintf("len: %d\n", len);
-  cprintf("first: %d\n", first);
-  cprintf("last: %d\n", last);
-  cprintf("\n\n");
+  // cprintf("virtual addr: %d\n", (uint)virtual_addr);
+  // cprintf("len: %d\n", len);
+  // cprintf("first: %d\n", first);
+  // cprintf("last: %d\n", last);
+  // cprintf("\n\n");
 
   int count = 0;
   int encrypt = 0;
-  for (int page_i = myproc()->sz; page_i + 1 > 0; page_i -= PGSIZE)
+  for (int page_i = 0; page_i < myproc()->sz; page_i += PGSIZE)
   {
+    if ((uint)page_i == first)  // last found
+      encrypt = 1;             // now flag to start encrypting
+    if ((uint)page_i == last) // first found
+      encrypt = 0;             // now flag to stop encrypting
+    // cprintf("checking for page addr %d\n", page_i);
     pte_t *pte = walkpgdir(myproc()->pgdir, (void *)page_i, 0);
 
-    uint pd = PGROUNDDOWN((uint)page_i); // first page to encrypt
-    uint pu = PGROUNDUP((uint)page_i);   // last page (not included)
+    // uint pd = PGROUNDDOWN((uint)page_i); // first page to encrypt
+    // uint pu = PGROUNDUP((uint)page_i);   // last page (not included)
 
-    cprintf("%d\tpage: %d\tpd: %d\tpu: %d\tE: %d\tP: %d\n", count, page_i, pd, pu, ((*pte) & PTE_E), ((*pte) & PTE_P));
+    // cprintf("page: %d\tE: %d\tP: %d\n", page_i, ((*pte) & PTE_E), ((*pte) & PTE_P));
+    // cprintf("page: %d\tpd: %d\tpu: %d\tE: %d\tP: %d\n", page_i, pd, pu, ((*pte) & PTE_E), ((*pte) & PTE_P));
     // encrypt IF flagged (start at false)
     if (encrypt)
     {
-      cprintf("e\n");
+      // cprintf("try to encrpyt\n");
+      // cprintf("e\n");
       // walkpgdir() returns a pte_t that contains pa
       if ((*pte) & PTE_P) // test PTE_P bit is set; I want to check if encrypt here eventually
       {
+        // cprintf("encrypting...\n");
         char *kva = uva2ka(myproc()->pgdir, (void *)page_i);
         if (kva == 0)
           return 0;
@@ -458,28 +471,8 @@ int mencrypt(char *virtual_addr, int len)
         switchuvm(myproc());      // flush the TLB after modifying the page table
       }
     }
-    if ((uint)page_i == first) // first found
-      encrypt = 0;             // now flag to stop encrypting
-    if ((uint)page_i == last)  // last found
-      encrypt = 1;             // now flag to start encrypting
     count++;
   }
-
-
-  // PRINT TO CHECK
-  // count = 0;
-  // encrypt = 0;
-  // for (int page_i = myproc()->sz; page_i + 1 > 0; page_i -= PGSIZE)
-  // {
-  //   pte_t *pte = walkpgdir(myproc()->pgdir, (void *)page_i, 0);
-
-  //   uint pd = PGROUNDDOWN((uint)page_i); // first page to encrypt
-  //   uint pu = PGROUNDUP((uint)page_i);   // last page (not included)
-
-  //   cprintf("%d\tpage: %d\tpd: %d\tpu: %d\tE: %d\tP: %d\n", count, page_i, pd, pu, ((*pte) & PTE_E), ((*pte) & PTE_P));
-  //   // encrypt IF flagged (start at false)
-  //   count++;
-  // }
 
   return 0;
 }
@@ -492,10 +485,10 @@ int mencrypt(char *virtual_addr, int len)
 // bits 31-12(used) 11-9(free) 8-0(used)
 // so selector for present bit is 0x001
 
-
-int decrypt(uint uva) {
+int decrypt(uint uva)
+{
   uint a = PGROUNDDOWN(uva);
-  for (int page_i = myproc()->sz; page_i + 1 > 0; page_i -= PGSIZE)
+  for (int page_i = myproc()->sz - PGSIZE; page_i + 1 > 0; page_i -= PGSIZE)
   {
     pte_t *pte = walkpgdir(myproc()->pgdir, (void *)page_i, 0);
     if (((uint)page_i == a) && ((*pte) & PTE_E)) // found; PTE_E bit is set
@@ -515,13 +508,15 @@ int decrypt(uint uva) {
   return -1;
 }
 
-int getpgtable(struct pt_entry* entries, int num) {
+int getpgtable(struct pt_entry *entries, int num)
+{
   if (entries == 0)
     return -1;
   int i = 0;
-  for (int page_i = myproc()->sz; page_i + 1 > 0; page_i -= PGSIZE)
+  for (int page_i = myproc()->sz - PGSIZE; page_i + 1 > 0; page_i -= PGSIZE)
   {
-    if (i > num) {
+    if (i > num)
+    {
       return num;
     }
     pte_t *pte = walkpgdir(myproc()->pgdir, (void *)page_i, 0);
@@ -532,19 +527,25 @@ int getpgtable(struct pt_entry* entries, int num) {
     if ((*pte) & PTE_P) // PTE_E bit is set
     {
       entries[i].present = 1;
-    } else {
+    }
+    else
+    {
       entries[i].present = 0;
     }
     if ((*pte) & PTE_W) // PTE_E bit is set
     {
       entries[i].writable = 1;
-    } else {
+    }
+    else
+    {
       entries[i].writable = 0;
     }
     if ((*pte) & PTE_E) // PTE_E bit is set
     {
       entries[i].encrypted = 1;
-    } else {
+    }
+    else
+    {
       entries[i].encrypted = 0;
     }
     i++;
@@ -552,6 +553,11 @@ int getpgtable(struct pt_entry* entries, int num) {
   return -1;
 }
 
-int dump_rawphymem(uint physical_addr, char * buffer) {
-  return -1;
+int dump_rawphymem(uint physical_addr, char *buffer)
+{
+  // // Copy len bytes from p to user address va in page table pgdir.
+  // // Most useful when pgdir is not the current page table.
+  // // uva2ka ensures this only works for PTE_U pages.
+  // int copyout(pde_t *pgdir, uint va, void *p, uint len)
+  return copyout(myproc()->pgdir, (uint)P2V(physical_addr), (void *)buffer, PGSIZE);
 }

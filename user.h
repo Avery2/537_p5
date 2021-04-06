@@ -27,7 +27,7 @@ int uptime(void);
 int mencrypt(char *, int);
 int decrypt(uint);
 int getpgtable(struct pt_entry *, int num);
-int dump_rawphymem(unint, char *);
+int dump_rawphymem(uint, char *);
 
 // ulib.c
 int stat(const char *, struct stat *);

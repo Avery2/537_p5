@@ -89,9 +89,9 @@ int sys_mencrypt(void)
 {
   char *virtual_addr;
   int len;
-  if (argint(0, &len) < 0)
+  if (argint(1, &len) < 0)
     return -1;
-  if (argptr(1, &virtual_addr, sizeof(char *)) < 0)
+  if (argptr(0, &virtual_addr, sizeof(char *)) < 0)
     return -1;
 
   //	myproc()->pgdir;
