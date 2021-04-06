@@ -79,6 +79,10 @@ void trap(struct trapframe *tf)
     break;
   case T_PGFLT:
     // HANDLE CHECKING IF PTE_E
+    if (decrypt(rcr2()) == 0)
+    {
+      break;
+    }
 
   //PAGEBREAK: 13
   default:

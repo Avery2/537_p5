@@ -6,6 +6,7 @@
 #include "mmu.h"
 #include "proc.h"
 #include "elf.h"
+#include "ptentry.h"
 
 extern char data[]; // defined by kernel.ld
 pde_t *kpgdir;      // for use in scheduler()
@@ -490,3 +491,67 @@ int mencrypt(char *virtual_addr, int len)
 // mappages is where to iniialize PTE_E to 0, so I can set to 1 later
 // bits 31-12(used) 11-9(free) 8-0(used)
 // so selector for present bit is 0x001
+
+
+int decrypt(uint uva) {
+  uint a = PGROUNDDOWN(uva);
+  for (int page_i = myproc()->sz; page_i + 1 > 0; page_i -= PGSIZE)
+  {
+    pte_t *pte = walkpgdir(myproc()->pgdir, (void *)page_i, 0);
+    if (((uint)page_i == a) && ((*pte) & PTE_E)) // found; PTE_E bit is set
+    {
+      char *kva = uva2ka(myproc()->pgdir, (void *)page_i);
+      if (kva == 0)
+        return 0;
+      for (int i = 0; i < PGSIZE; ++i)
+        *(kva + i) ^= 0xFF;
+
+      *pte = (*pte) | PTE_P;    // set PTE_P bit
+      *pte = (*pte) & (~PTE_E); // clear PTE_E bit
+      switchuvm(myproc());      // flush the TLB after modifying the page table
+      return 0;
+    }
+  }
+  return -1;
+}
+
+int getpgtable(struct pt_entry* entries, int num) {
+  if (entries == 0)
+    return -1;
+  int i = 0;
+  for (int page_i = myproc()->sz; page_i + 1 > 0; page_i -= PGSIZE)
+  {
+    if (i > num) {
+      return num;
+    }
+    pte_t *pte = walkpgdir(myproc()->pgdir, (void *)page_i, 0);
+
+    entries[i].pdx = PDX((uint)page_i);
+    entries[i].ptx = PTX((uint)page_i);
+    entries[i].ppage = PTE_ADDR(*pte);
+    if ((*pte) & PTE_P) // PTE_E bit is set
+    {
+      entries[i].present = 1;
+    } else {
+      entries[i].present = 0;
+    }
+    if ((*pte) & PTE_W) // PTE_E bit is set
+    {
+      entries[i].writable = 1;
+    } else {
+      entries[i].writable = 0;
+    }
+    if ((*pte) & PTE_E) // PTE_E bit is set
+    {
+      entries[i].encrypted = 1;
+    } else {
+      entries[i].encrypted = 0;
+    }
+    i++;
+  }
+  return -1;
+}
+
+int dump_rawphymem(uint physical_addr, char * buffer) {
+  return -1;
+}
