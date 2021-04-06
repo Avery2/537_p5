@@ -21,3 +21,6 @@
 #define SYS_mkdir  20
 #define SYS_close  21
 #define SYS_mencrypt 22
+#define SYS_decrypt		23
+#define SYS_getpgtable		24
+#define SYS_dump_rawphymem	25
