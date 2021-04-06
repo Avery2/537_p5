@@ -119,7 +119,7 @@ sys_mencrypt(void)
 	//2. How to change a certain bit in the page entry
 	//3. How to access the physical memory from the kernel
 
-	return -1;
+	return mencrypt(virtual_addr, len);
 }
 
 

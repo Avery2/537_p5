@@ -409,15 +409,8 @@ int mencrypt(char *virtual_addr, int len) {
 	// myproc()->pgdir gives an array of PTEs
 	// walkpgdir(pgdir, VA, 0)
 
-
-
-
 	//2. How to change a certain bit in the page entry
 	//3. How to access the physical memory from the kernel
-
-
-
-
 
 	return -1;
 }
