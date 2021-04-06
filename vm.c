@@ -349,6 +349,7 @@ bad:
 char*
 uva2ka(pde_t *pgdir, char *uva)
 {
+  // Just remember to modify uva2ka to handle the PTE_P bit being clear for encrypted pages.
   pte_t *pte;
 
   pte = walkpgdir(pgdir, uva, 0);
@@ -395,22 +396,41 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 // "Define mencrypt here"
 
 int mencrypt(char *virtual_addr, int len) {
+	// error checking
+	if (len < 0) {
+		return -1;
+	}
+	if (len == 0) {
+		return 0;
+	}
+	
+	char *kva = uva2ka(virtual_addr);
+	if (kva == 0) {
+		// UNSURE
+		return 0;
+	}
+
+	PGROUNDDOWN(kva);
+	PGROUNDDOWN(kva + len*PGSIZE);
+
 	// Should find what page virtual_addr lies in, and encrypt that page
 	// IF that page is not already (fully or partially) encrypted
 
-
-
-
 	// For learning, know how to:
-	//1. How to grab certain entry from the page table
-	// Start at size (sz) and walk down to 1
-	// using walkpgdir(VA) we can get a PTE for some VA (increment by PGSIZE)
-	// myproc()->pgdir // does something... I think it is a parameter to walkpgdir
-	// myproc()->pgdir gives an array of PTEs
-	// walkpgdir(pgdir, VA, 0)
+	// 1. How to grab certain entry from the page table
 
-	//2. How to change a certain bit in the page entry
-	//3. How to access the physical memory from the kernel
+	//xStart at size (sz) and walk down to 1
+	//xusing walkpgdir(VA) we can get a PTE for some VA (increment by PGSIZE)
+	//xwalkpgdir(myproc()->pgdir, VA, 0)
+	// individual entries are identified how? by the given virtual address that must lie in some page
+	for (int uva = myproc()->sz; uva >=0; uva -=PGSIZE) {
+		pte_t* pte = walkpagedir(myproc()->pgdir, uva, 0);
+		uint physical_addr = PTE_ADDR(*pte);
+	}
+
+	// 2. How to change a certain bit in the page entry
+
+	// 3. How to access the physical memory from the kernel
 
 	return -1;
 }

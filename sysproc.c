@@ -100,6 +100,9 @@ sys_mencrypt(void)
 	if(argptr(1, &virtual_addr, sizeof(char*)) < 0)
 	 return -1;
 
+//	myproc()->pgdir;
+//	myproc()->sz;
+
 	return mencrypt(virtual_addr, len);
 }
 
