@@ -99,25 +99,6 @@ sys_mencrypt(void)
 	 return -1;
 	if(argptr(1, &virtual_addr, sizeof(char*)) < 0)
 	 return -1;
-	// Should find what page virtual_addr lies in, and encrypt that page
-	// IF that page is not already (fully or partially) encrypted
-
-
-
-
-	// For learning, know how to:
-	//1. How to grab certain entry from the page table
-	// Start at size (sz) and walk down to 1
-	// using walkpgdir(VA) we can get a PTE for some VA (increment by PGSIZE)
-	// myproc()->pgdir // does something... I think it is a parameter to walkpgdir
-	// myproc()->pgdir gives an array of PTEs
-	// walkpgdir(pgdir, VA, 0)
-
-
-
-
-	//2. How to change a certain bit in the page entry
-	//3. How to access the physical memory from the kernel
 
 	return mencrypt(virtual_addr, len);
 }
