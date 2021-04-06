@@ -76,9 +76,11 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
       panic("remap");
     
     if (perm & PTE_E) {
-      *pte = (pa | perm | PTE_P | PTE_E);
+      *pte = (pa | perm | PTE_E); // need to remove P
+      *pte &= ~(PTE_P);
     } else {// HERE I can set PTE_E to start at 0.
-      *pte = (pa | perm | PTE_P);
+      *pte = (pa | perm | PTE_P); // need to remove E
+      *pte &= ~(PTE_E);
     }
     if (a == last)
       break;
